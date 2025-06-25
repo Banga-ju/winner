@@ -199,6 +199,12 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
+
+const searchSound = new Audio('search.mp3');
+const winnerSound = new Audio('winner.mp3');
+
+
+
     const fileInput = document.getElementById("excel-file");
     const startBtn = document.getElementById("start-btn");
     const displayName = document.getElementById("display-name");
@@ -238,6 +244,9 @@
       if (participants.length === 0) return;
 
       startBtn.disabled = true;
+      searchSound.loop = true;
+searchSound.play();
+
       let current = "";
 
       interval = setInterval(() => {
@@ -252,6 +261,11 @@
         displayName.textContent = final.name;
         winnerName.textContent = final.name;
         winnerComment.textContent = final.comment;
+        searchSound.pause();
+searchSound.currentTime = 0;
+winnerSound.play();
+
+
         winnerPopup.style.display = "flex";
         showFireworks();
         startBtn.disabled = false;
