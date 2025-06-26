@@ -16,9 +16,20 @@
       justify-content: center;
       height: 100vh;
       margin: 0;
+      padding:0 ;
+      height: 100%;
       color: white;
       overflow: hidden;
     }
+
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
 
     .upload-area {
       margin-bottom: 20px;
@@ -168,6 +179,7 @@
   </style>
 </head>
 <body>
+    <div class="container">
 
     <div class="header-area">
         <img src="logo.png" alt="شعار بنقا" class="banga-logo">
@@ -298,5 +310,7 @@ f.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
       }, interval);
     }
   </script>
+    </div>
+
 </body>
 </html>
