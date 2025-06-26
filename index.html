@@ -3,34 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>سحب عصيرات بنقا</title>
+  <title>سحب بنقا</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
-
+  
+  
+    
     body, html {
-  height: 100vh;
   margin: 0;
   padding: 0;
+  overflow: hidden;
+        
+  height: 100vh;
+  overflow: hidden;
 }
+
+.container {
+  position: relative;
+  width: 100%;
+  height: 70%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+
+}
+
 
 body {
   font-family: 'Tajawal', sans-serif;
   background: linear-gradient(135deg, #6e48aa, #9d50bb);
-  display: flex;
-  justify-content: center;
-  align-items: center;
   color: white;
   overflow: hidden;
 }
 
 
-.container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
 
     .upload-area {
       margin-bottom: 20px;
@@ -177,6 +185,29 @@ body {
 }
 
 
+.winner-tabs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.tab-btn {
+  background-color: white;
+  color: #6e48aa;
+  border: none;
+  padding: 10px 20px;
+  font-weight: bold;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background-color: #FFD700;
+  color: #6e48aa;
+  font-weight: bold;
+}
+
+
   </style>
 </head>
 <body>
@@ -196,6 +227,12 @@ body {
 
   <div id="display-name">الفائز هو: </div>
   <button id="start-btn" class="btn" disabled>ابدأ السحب</button>
+  <div class="winner-tabs" style="margin: 20px 0;">
+    <button class="tab-btn" data-rank="الفائز الأول">الفائز الأول</button>
+    <button class="tab-btn" data-rank="الفائز الثاني">الفائز الثاني</button>
+    <button class="tab-btn" data-rank="الفائز الثالث">الفائز الثالث</button>
+  </div>
+  
 
   <div class="winner-popup" id="winner-popup">
     <div class="winner-content">
@@ -209,6 +246,8 @@ body {
       <div class="winner-comment-box" id="winner-comment"></div>
     </div>
   </div>
+</div>
+
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
@@ -227,6 +266,22 @@ const winnerSound = new Audio('winner.mp3');
 
     let participants = [];
     let interval;
+
+    let selectedRank = "";
+const tabButtons = document.querySelectorAll(".tab-btn");
+
+tabButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.disabled) return;
+
+    tabButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    selectedRank = btn.dataset.rank;
+  });
+});
+
+
+
 
     fileInput.addEventListener("change", handleFile);
 
@@ -254,8 +309,10 @@ const winnerSound = new Audio('winner.mp3');
 }
 
     startBtn.addEventListener("click", () => {
-      if (participants.length === 0) return;
-
+        if (participants.length === 0 || !selectedRank) {
+    alert("اختر نوع الفائز أولاً");
+    return;
+  }
       startBtn.disabled = true;
       searchSound.loop = true;
 searchSound.play();
@@ -273,6 +330,16 @@ searchSound.play();
         const final = participants[Math.floor(Math.random() * participants.length)];
         displayName.textContent = final.name;
         winnerName.textContent = final.name;
+
+        const rankTitle = document.createElement("div");
+rankTitle.textContent = selectedRank;
+rankTitle.style.fontWeight = "bold";
+rankTitle.style.marginBottom = "10px";
+rankTitle.style.fontSize = "22px";
+winnerName.prepend(rankTitle);
+
+
+
         winnerComment.textContent = final.comment;
         searchSound.pause();
 searchSound.currentTime = 0;
@@ -280,6 +347,15 @@ winnerSound.play();
 
 
         winnerPopup.style.display = "flex";
+        tabButtons.forEach(btn => {
+  if (btn.dataset.rank === selectedRank) {
+    btn.disabled = true;
+    btn.classList.remove("active");
+  }
+});
+selectedRank = "";
+
+
         showFireworks();
         startBtn.disabled = false;
       }, 5000);
@@ -311,7 +387,6 @@ f.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
       }, interval);
     }
   </script>
-    </div>
 
 </body>
 </html>
