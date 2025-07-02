@@ -85,14 +85,14 @@
 <script>
   // Firebase config
   const firebaseConfig = {
-  apiKey: "AIzaSyAfvxROrhBdsFxkX9U5kriI4ySs9c41roY",
-  authDomain: "bangadata-57f98.firebaseapp.com",
-  projectId: "bangadata-57f98",
-  storageBucket: "bangadata-57f98.firebasestorage.app",
-  messagingSenderId: "26361247251",
-  appId: "1:26361247251:web:0bf34e6df881f45110f1e6",
-  measurementId: "G-C4L0MX3K1D"
-};
+    apiKey: "AIzaSyBnhF6UNAO_2QsxHziavU3Ab7euBYsHuAw",
+    authDomain: "myscreens-40336.firebaseapp.com",
+    projectId: "myscreens-40336",
+    storageBucket: "myscreens-40336.firebasestorage.app",
+    messagingSenderId: "597403911031",
+    appId: "1:597403911031:web:54045a2e2df8f248b51772",
+    measurementId: "G-8ZTW6NFTZJ"
+  };
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
@@ -104,7 +104,6 @@
     document.getElementById(id).style.display = 'block';
   }
 
-  // Helpers
   function formatDate(dateStr) {
     const date = new Date(dateStr);
     return date.toLocaleDateString('ar-EG');
@@ -114,32 +113,40 @@
     const monthly = {};
     const products = {};
 
-    const ordersSnapshot = await db.collectionGroup('2025').get(); // تأكد من أنك تراجع مستوى السنة الصحيح
-    ordersSnapshot.forEach(doc => {
-      const order = doc.data();
-      const dateParts = doc.ref.path.split('/');
-      const year = dateParts[1], month = dateParts[2];
+    const snapshot = await db.collection("orders").get();
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const docId = doc.id;
+
+      if (!/^\d{8}$/.test(docId)) return; // تأكد أن رقم الطلب مكون من 8 أرقام
+
+      const month = docId.slice(0, 2);
+      const day = docId.slice(2, 4);
+      const year = "2025"; // نقدر نحدثها لاحقًا لو تغير الهيكل
+      const dateStr = `${year}-${month}-${day}`;
       const monthKey = `${year}-${month}`;
+
       if (!monthly[monthKey]) monthly[monthKey] = { count: 0, products: {} };
       monthly[monthKey].count++;
 
-      if (order.items) {
-        order.items.forEach(item => {
-          // الشهرية
-          const key = item.name || item.title || 'منتج غير معروف';
+      if (data.items && Array.isArray(data.items)) {
+        data.items.forEach(item => {
+          const name = item.name || 'منتج غير معروف';
           const qty = item.quantity || 1;
-          if (!monthly[monthKey].products[key]) monthly[monthKey].products[key] = { times: 0, qty: 0 };
-          monthly[monthKey].products[key].times++;
-          monthly[monthKey].products[key].qty += qty;
 
-          // لكل منتج
-          if (!products[key]) products[key] = [];
-          products[key].push({ date: `${year}-${month}-${dateParts[3]}`, qty });
+          // شهري
+          if (!monthly[monthKey].products[name]) monthly[monthKey].products[name] = { times: 0, qty: 0 };
+          monthly[monthKey].products[name].times++;
+          monthly[monthKey].products[name].qty += qty;
+
+          // منتج
+          if (!products[name]) products[name] = [];
+          products[name].push({ date: dateStr, qty });
         });
       }
     });
 
-    // عرض التقارير الشهرية
+    // عرض تقارير شهرية
     const monthlyContainer = document.getElementById("monthlyReports");
     monthlyContainer.innerHTML = '';
     Object.entries(monthly).forEach(([month, data]) => {
