@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>تقارير الطلبات</title>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      margin: 0;
+      background: #f8f8f8;
+    }
+    header {
+      background: #2d9958;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.4rem;
+    }
+    .tabs {
+      display: flex;
+      justify-content: center;
+      background: #ddd;
+    }
+    .tab {
+      padding: 1rem 2rem;
+      cursor: pointer;
+      background: #ccc;
+      border: 1px solid #bbb;
+      font-weight: bold;
+    }
+    .tab.active {
+      background: #ffffff;
+      border-bottom: 2px solid #2d9958;
+    }
+    .content {
+      padding: 1rem 2rem;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .card h3 {
+      margin-top: 0;
+      color: #2d9958;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      padding: 8px;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+
+<header>تقارير الطلبات</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('monthly')">تقارير شهرية</div>
+  <div class="tab" onclick="showTab('products')">تفاصيل المنتجات</div>
+</div>
+
+<div class="content">
+  <div id="monthly" class="tab-content">
+    <div id="monthlyReports">جاري التحميل...</div>
+  </div>
+  <div id="products" class="tab-content" style="display:none">
+    <div id="productReports">جاري التحميل...</div>
+  </div>
+</div>
+
+<script>
+  // Firebase config
+  const firebaseConfig = {
+  apiKey: "AIzaSyAXLV5Pi6ThLj4UExJXX0h_YN4k6-RJGbE",
+  authDomain: "bangadata-57f98.firebaseapp.com",
+  projectId: "bangadata-57f98",
+  storageBucket: "bangadata-57f98.appspot.com",
+  messagingSenderId: "322240776510",
+  appId: "1:322240776510:web:7d1a2524f1a1678e2146ef"
+};
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  function showTab(id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    document.querySelector(`.tab[onclick*="${id}"]`).classList.add('active');
+    document.getElementById(id).style.display = 'block';
+  }
+
+  // Helpers
+  function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('ar-EG');
+  }
+
+  async function fetchReports() {
+    const monthly = {};
+    const products = {};
+
+    const ordersSnapshot = await db.collectionGroup('2025').get(); // تأكد من أنك تراجع مستوى السنة الصحيح
+    ordersSnapshot.forEach(doc => {
+      const order = doc.data();
+      const dateParts = doc.ref.path.split('/');
+      const year = dateParts[1], month = dateParts[2];
+      const monthKey = `${year}-${month}`;
+      if (!monthly[monthKey]) monthly[monthKey] = { count: 0, products: {} };
+      monthly[monthKey].count++;
+
+      if (order.items) {
+        order.items.forEach(item => {
+          // الشهرية
+          const key = item.name || item.title || 'منتج غير معروف';
+          const qty = item.quantity || 1;
+          if (!monthly[monthKey].products[key]) monthly[monthKey].products[key] = { times: 0, qty: 0 };
+          monthly[monthKey].products[key].times++;
+          monthly[monthKey].products[key].qty += qty;
+
+          // لكل منتج
+          if (!products[key]) products[key] = [];
+          products[key].push({ date: `${year}-${month}-${dateParts[3]}`, qty });
+        });
+      }
+    });
+
+    // عرض التقارير الشهرية
+    const monthlyContainer = document.getElementById("monthlyReports");
+    monthlyContainer.innerHTML = '';
+    Object.entries(monthly).forEach(([month, data]) => {
+      let html = `<div class="card"><h3>${month}</h3><p>مجموع الطلبات: ${data.count}</p><table><tr><th>المنتج</th><th>عدد الطلبات</th><th>إجمالي الكمية</th></tr>`;
+      Object.entries(data.products).forEach(([prod, stats]) => {
+        html += `<tr><td>${prod}</td><td>${stats.times}</td><td>${stats.qty}</td></tr>`;
+      });
+      html += '</table></div>';
+      monthlyContainer.innerHTML += html;
+    });
+
+    // عرض تقارير المنتجات
+    const productContainer = document.getElementById("productReports");
+    productContainer.innerHTML = '';
+    Object.entries(products).forEach(([prod, list]) => {
+      list.sort((a,b) => new Date(a.date) - new Date(b.date));
+      const dates = list.map(i => i.date);
+      const qtySum = list.reduce((sum, i) => sum + i.qty, 0);
+      const gaps = [];
+      for (let i = 1; i < dates.length; i++) {
+        const diff = (new Date(dates[i]) - new Date(dates[i-1])) / (1000 * 3600 * 24);
+        gaps.push(diff);
+      }
+      const avgGap = gaps.length ? (gaps.reduce((a,b)=>a+b,0) / gaps.length).toFixed(1) : '-';
+      const lastDate = dates[dates.length-1];
+      const nextEst = avgGap !== '-' ? formatDate(new Date(new Date(lastDate).getTime() + avgGap * 86400000)) : '—';
+
+      let html = `<div class="card"><h3>${prod}</h3>
+        <p>عدد الطلبات: ${list.length}</p>
+        <p>إجمالي الكمية: ${qtySum}</p>
+        <p>متوسط الفترة بين الطلبات: ${avgGap} يوم</p>
+        <p>آخر طلب: ${formatDate(lastDate)}</p>
+        <p><strong>الطلب المتوقع القادم:</strong> ${nextEst}</p>
+      </div>`;
+      productContainer.innerHTML += html;
+    });
+  }
+
+  fetchReports();
+</script>
+</body>
+</html>
