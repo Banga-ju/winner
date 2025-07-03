@@ -5,6 +5,10 @@
   <title>تقارير الطلبات</title>
   <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Cairo', sans-serif; margin: 0; background: #f4f4f4; }
@@ -31,6 +35,7 @@
       .filterInput { padding: 8px; font-size: 14px; }
     }
   </style>
+  
 </head>
 <body>
 
@@ -39,6 +44,20 @@
   <div class="tab active" onclick="showTab('monthly')">تقارير شهرية</div>
   <div class="tab" onclick="showTab('products')">تفاصيل المنتجات</div>
 </div>
+
+
+<div id="monthlyChartCard" class="card">
+    <h3>مخطط الطلبات حسب الشهر والمنتج</h3>
+    <label for="productSelector">اختر المنتجات لعرضها في الشارت:</label>
+<select id="productSelector" multiple size="6" style="width:100%; padding:8px; margin:10px 0; border-radius:6px; border:1px solid #ccc; font-family:Cairo;">
+  <!-- يتم تعبئته من الجافاسكربت -->
+</select>
+
+
+<canvas id="monthlyChart" style="width:100%; max-height:350px;" height="400"></canvas>
+  </div>
+
+  
 
 <div class="content">
   <div id="monthly" class="tab-content">
@@ -87,17 +106,40 @@ function sortTable(header) {
   const index = Array.from(header.parentNode.children).indexOf(header);
   const tbody = table.querySelector("tbody");
   const rows = Array.from(tbody.querySelectorAll("tr"));
-  const dir = header.dataset.sortDir === "asc" ? "desc" : "asc";
-  header.dataset.sortDir = dir;
 
-  rows.sort((a, b) => {
-    const aText = a.children[index].innerText.toLowerCase();
-    const bText = b.children[index].innerText.toLowerCase();
-    return dir === "asc" ? aText.localeCompare(bText) : bText.localeCompare(aText);
+  // إعادة تعيين كل الرؤوس
+  table.querySelectorAll("th").forEach(th => {
+    th.dataset.sortDir = "";
+    th.textContent = th.textContent.replace(/[▲▼]/g, "").trim();
   });
 
+  // تحديد الاتجاه
+  const currentDir = header.dataset.sortDir;
+  const newDir = currentDir === "asc" ? "desc" : "asc";
+  header.dataset.sortDir = newDir;
+  const arrow = newDir === "asc" ? " ▲" : " ▼";
+  header.textContent = header.textContent.trim() + arrow;
+
+  // فرز الصفوف
+  rows.sort((a, b) => {
+    const aText = a.children[index].innerText.trim();
+    const bText = b.children[index].innerText.trim();
+
+    // محاولة تحويل لقيم رقمية إذا أمكن
+    const aVal = isNaN(aText) ? aText : parseFloat(aText);
+    const bVal = isNaN(bText) ? bText : parseFloat(bText);
+
+    if (aVal < bVal) return newDir === "asc" ? -1 : 1;
+    if (aVal > bVal) return newDir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // إعادة ترتيب الصفوف
   rows.forEach(row => tbody.appendChild(row));
 }
+
+
+
 
 async function fetchReports() {
   const monthly = {}, products = {}, productToCategoryMap = {}, expectedMap = {};
@@ -149,6 +191,85 @@ async function fetchReports() {
     html += '</tbody></table></div>';
     monthlyContainer.innerHTML += html;
   });
+
+
+// 1. إعداد بيانات الشارت حسب المنتج والشهر
+const chartData = {};
+Object.entries(monthly).forEach(([monthKey, monthData]) => {
+  Object.entries(monthData.products).forEach(([product, stats]) => {
+    if (!chartData[product]) chartData[product] = {};
+    chartData[product][monthKey] = stats.qty;
+  });
+});
+
+const months = Object.keys(monthly).sort();
+const productSelector = document.getElementById("productSelector");
+
+// 2. تعبئة القائمة بالمنتجات حسب التصنيف
+const categorized = {};
+Object.entries(productToCategoryMap).forEach(([prod, cat]) => {
+  if (!categorized[cat]) categorized[cat] = [];
+  categorized[cat].push(prod);
+});
+Object.entries(categorized).forEach(([cat, products]) => {
+  const group = document.createElement("optgroup");
+  group.label = cat;
+  products.forEach(prod => {
+    const option = document.createElement("option");
+    option.value = prod;
+    option.textContent = prod;
+    group.appendChild(option);
+  });
+  productSelector.appendChild(group);
+});
+
+// 3. رسم الشارت للمنتجات المختارة
+function drawMonthlyChart(selectedProducts) {
+  const datasets = selectedProducts.map(prod => {
+    const data = months.map(month => chartData[prod]?.[month] || 0);
+    return {
+      label: prod,
+      data,
+      fill: false,
+      borderWidth: 2,
+      tension: 0.3
+    };
+  });
+
+  const ctx = document.getElementById('monthlyChart').getContext('2d');
+  if (window.monthlyChartRef) window.monthlyChartRef.destroy();
+  window.monthlyChartRef = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+// 4. حدث الشارت عند تغيير الاختيار
+productSelector.addEventListener("change", () => {
+  const selected = Array.from(productSelector.selectedOptions).map(opt => opt.value);
+  drawMonthlyChart(selected);
+});
+
+// 5. رسم افتراضي لأول 3 منتجات (اختياري)
+setTimeout(() => {
+  const defaultSelected = Array.from(productSelector.options).slice(0, 3);
+  defaultSelected.forEach(opt => opt.selected = true);
+  drawMonthlyChart(defaultSelected.map(opt => opt.value));
+}, 500);
+
 
   const groupedByCategory = {};
   Object.entries(products).forEach(([name, list]) => {
