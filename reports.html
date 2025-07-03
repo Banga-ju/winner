@@ -3,71 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <title>تقارير الطلبات</title>
-  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Cairo', sans-serif;
-      margin: 0;
-      background: #f8f8f8;
-    }
-    header {
-      background: #2d9958;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.4rem;
-    }
-    .tabs {
-      display: flex;
-      justify-content: center;
-      background: #ddd;
-    }
-    .tab {
-      padding: 1rem 2rem;
-      cursor: pointer;
-      background: #ccc;
-      border: 1px solid #bbb;
-      font-weight: bold;
-    }
-    .tab.active {
-      background: #ffffff;
-      border-bottom: 2px solid #2d9958;
-    }
-    .content {
-      padding: 1rem 2rem;
-    }
-    .card {
-      background: white;
-      border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    .card h3 {
-      margin-top: 0;
-      color: #2d9958;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.5rem;
-    }
-    th, td {
-      padding: 8px;
-      text-align: center;
-      border-bottom: 1px solid #eee;
-    }
-    th {
-      background: #f0f0f0;
+    body { font-family: 'Cairo', sans-serif; margin: 0; background: #f4f4f4; }
+    header { background: #2d9958; color: white; padding: 1rem; text-align: center; font-size: 1.6rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .tabs { display: flex; flex-wrap: wrap; justify-content: center; background: #eee; border-bottom: 2px solid #ccc; }
+    .tab { padding: 1rem 2rem; cursor: pointer; background: #ddd; border: 1px solid #ccc; border-bottom: none; margin: 0 5px; border-top-left-radius: 8px; border-top-right-radius: 8px; white-space: nowrap; }
+    .tab.active { background: white; font-weight: bold; border-bottom: 2px solid white; }
+    .content { padding: 1rem; max-width: 100%; box-sizing: border-box; }
+    .card { background: white; border-radius: 8px; padding: 1rem; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow-x: auto; }
+    .card h3 { margin-top: 0; color: #2d9958; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; min-width: 600px; }
+    th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 14px; }
+    th { background: #f0f0f0; cursor: pointer; position: relative; }
+    th::after { content: "\25BC"; position: absolute; left: 8px; font-size: 12px; color: #999; }
+    .filterInput { margin-bottom: 10px; width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-family: Cairo; box-sizing: border-box; }
+    .accordion { margin-bottom: 1rem; }
+    .accordion button { width: 100%; text-align: right; padding: 12px; font-weight: bold; background: #e0f1e9; border: 1px solid #ccc; cursor: pointer; border-radius: 6px; transition: background 0.3s ease; }
+    .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; background: white; padding: 0 10px; border: 1px solid #ccc; border-top: none; border-radius: 0 0 6px 6px; }
+    .accordion-content.show { padding: 10px; max-height: 1000px; }
+  
+    @media (max-width: 768px) {
+      .tab { font-size: 14px; padding: 0.5rem 1rem; }
+      th, td { font-size: 12px; padding: 8px; }
+      .filterInput { padding: 8px; font-size: 14px; }
     }
   </style>
 </head>
 <body>
 
 <header>تقارير الطلبات</header>
-
 <div class="tabs">
   <div class="tab active" onclick="showTab('monthly')">تقارير شهرية</div>
   <div class="tab" onclick="showTab('products')">تفاصيل المنتجات</div>
@@ -78,90 +45,135 @@
     <div id="monthlyReports">جاري التحميل...</div>
   </div>
   <div id="products" class="tab-content" style="display:none">
+    <div id="predictedSummary"></div>
     <div id="productReports">جاري التحميل...</div>
   </div>
 </div>
 
 <script>
-  // Firebase config
-  const firebaseConfig = {
-    apiKey: "AIzaSyBnhF6UNAO_2QsxHziavU3Ab7euBYsHuAw",
-    authDomain: "myscreens-40336.firebaseapp.com",
-    projectId: "myscreens-40336",
-    storageBucket: "myscreens-40336.firebasestorage.app",
-    messagingSenderId: "597403911031",
-    appId: "1:597403911031:web:54045a2e2df8f248b51772",
-    measurementId: "G-8ZTW6NFTZJ"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyBnhF6UNAO_2QsxHziavU3Ab7euBYsHuAw",
+  authDomain: "myscreens-40336.firebaseapp.com",
+  projectId: "myscreens-40336",
+  storageBucket: "myscreens-40336.firebasestorage.app",
+  messagingSenderId: "597403911031",
+  appId: "1:597403911031:web:54045a2e2df8f248b51772"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+  document.querySelector(`.tab[onclick*="${id}"]`).classList.add('active');
+  document.getElementById(id).style.display = 'block';
+}
 
-  function showTab(id) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-    document.querySelector(`.tab[onclick*="${id}"]`).classList.add('active');
-    document.getElementById(id).style.display = 'block';
-  }
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('ar-EG');
+}
+function formatKey(date) {
+  return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
+}
 
-  function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ar-EG');
-  }
+function toggleAccordion(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('show');
+}
 
-  async function fetchReports() {
-    const monthly = {};
-    const products = {};
+function sortTable(header) {
+  const table = header.closest("table");
+  const index = Array.from(header.parentNode.children).indexOf(header);
+  const tbody = table.querySelector("tbody");
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  const dir = header.dataset.sortDir === "asc" ? "desc" : "asc";
+  header.dataset.sortDir = dir;
 
-    const snapshot = await db.collection("orders").get();
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const docId = doc.id;
+  rows.sort((a, b) => {
+    const aText = a.children[index].innerText.toLowerCase();
+    const bText = b.children[index].innerText.toLowerCase();
+    return dir === "asc" ? aText.localeCompare(bText) : bText.localeCompare(aText);
+  });
 
-      if (!/^\d{8}$/.test(docId)) return; // تأكد أن رقم الطلب مكون من 8 أرقام
+  rows.forEach(row => tbody.appendChild(row));
+}
 
-      const month = docId.slice(0, 2);
-      const day = docId.slice(2, 4);
-      const year = "2025"; // نقدر نحدثها لاحقًا لو تغير الهيكل
-      const dateStr = `${year}-${month}-${day}`;
-      const monthKey = `${year}-${month}`;
+async function fetchReports() {
+  const monthly = {}, products = {}, productToCategoryMap = {}, expectedMap = {};
+  const categoriesSnapshot = await db.collection("categories").get();
+  categoriesSnapshot.forEach(doc => {
+    const category = doc.id;
+    const items = doc.data().products || [];
+    items.forEach(name => { productToCategoryMap[name] = category; });
+  });
 
-      if (!monthly[monthKey]) monthly[monthKey] = { count: 0, products: {} };
-      monthly[monthKey].count++;
+  const snapshot = await db.collection("orders").get();
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    const docId = doc.id;
+    if (!/^\d{8}$/.test(docId)) return;
+    const month = docId.slice(0, 2), day = docId.slice(2, 4), year = "2025";
+    const dateStr = `${year}-${month}-${day}`;
+    const monthKey = `${year}-${month}`;
+    if (!monthly[monthKey]) monthly[monthKey] = { count: 0, products: {} };
+    monthly[monthKey].count++;
 
-      if (data.items && Array.isArray(data.items)) {
-        data.items.forEach(item => {
-          const name = item.name || 'منتج غير معروف';
-          const qty = item.quantity || 1;
-
-          // شهري
-          if (!monthly[monthKey].products[name]) monthly[monthKey].products[name] = { times: 0, qty: 0 };
-          monthly[monthKey].products[name].times++;
-          monthly[monthKey].products[name].qty += qty;
-
-          // منتج
-          if (!products[name]) products[name] = [];
-          products[name].push({ date: dateStr, qty });
-        });
-      }
-    });
-
-    // عرض تقارير شهرية
-    const monthlyContainer = document.getElementById("monthlyReports");
-    monthlyContainer.innerHTML = '';
-    Object.entries(monthly).forEach(([month, data]) => {
-      let html = `<div class="card"><h3>${month}</h3><p>مجموع الطلبات: ${data.count}</p><table><tr><th>المنتج</th><th>عدد الطلبات</th><th>إجمالي الكمية</th></tr>`;
-      Object.entries(data.products).forEach(([prod, stats]) => {
-        html += `<tr><td>${prod}</td><td>${stats.times}</td><td>${stats.qty}</td></tr>`;
+    if (data.items && Array.isArray(data.items)) {
+      data.items.forEach(item => {
+        const name = item.name || 'غير معروف';
+        const qty = item.quantity || 1;
+        if (!monthly[monthKey].products[name]) monthly[monthKey].products[name] = { times: 0, qty: 0 };
+        monthly[monthKey].products[name].times++;
+        monthly[monthKey].products[name].qty += qty;
+        if (!products[name]) products[name] = [];
+        products[name].push({ date: dateStr, qty });
       });
-      html += '</table></div>';
-      monthlyContainer.innerHTML += html;
-    });
+    }
+  });
 
-    // عرض تقارير المنتجات
-    const productContainer = document.getElementById("productReports");
-    productContainer.innerHTML = '';
-    Object.entries(products).forEach(([prod, list]) => {
+  const monthlyContainer = document.getElementById("monthlyReports");
+  monthlyContainer.innerHTML = '';
+  Object.entries(monthly).forEach(([month, data], index) => {
+    let html = `<div class="card">
+      <h3>${month}</h3>
+      <input type="text" class="filterInput" data-table="monthly-${index}" placeholder="فلترة المنتجات...">
+      <table id="monthly-${index}"><thead><tr>
+        <th onclick="sortTable(this)">المنتج</th>
+        <th onclick="sortTable(this)">عدد الطلبات</th>
+        <th onclick="sortTable(this)">إجمالي الكمية</th>
+      </tr></thead><tbody>`;
+    Object.entries(data.products).forEach(([prod, stats]) => {
+      html += `<tr><td>${prod}</td><td>${stats.times}</td><td>${stats.qty}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    monthlyContainer.innerHTML += html;
+  });
+
+  const groupedByCategory = {};
+  Object.entries(products).forEach(([name, list]) => {
+    const category = productToCategoryMap[name] || "غير مصنف";
+    if (!groupedByCategory[category]) groupedByCategory[category] = {};
+    groupedByCategory[category][name] = list;
+  });
+
+  const productContainer = document.getElementById("productReports");
+  productContainer.innerHTML = '';
+  const today = new Date();
+
+  Object.entries(groupedByCategory).forEach(([category, items], index) => {
+    let html = `<div class="card">
+      <h3>${category}</h3>
+      <input type="text" class="filterInput" data-table="product-${index}" placeholder="فلترة المنتجات...">
+      <table id="product-${index}"><thead><tr>
+        <th onclick="sortTable(this)">المنتج</th>
+        <th onclick="sortTable(this)">عدد الطلبات</th>
+        <th onclick="sortTable(this)">إجمالي الكمية</th>
+        <th onclick="sortTable(this)">متوسط المدة</th>
+        <th onclick="sortTable(this)">آخر طلب</th>
+        <th onclick="sortTable(this)">المتوقع القادم</th>
+      </tr></thead><tbody>`;
+    Object.entries(items).forEach(([prod, list]) => {
       list.sort((a,b) => new Date(a.date) - new Date(b.date));
       const dates = list.map(i => i.date);
       const qtySum = list.reduce((sum, i) => sum + i.qty, 0);
@@ -170,22 +182,57 @@
         const diff = (new Date(dates[i]) - new Date(dates[i-1])) / (1000 * 3600 * 24);
         gaps.push(diff);
       }
-      const avgGap = gaps.length ? (gaps.reduce((a,b)=>a+b,0) / gaps.length).toFixed(1) : '-';
-      const lastDate = dates[dates.length-1];
-      const nextEst = avgGap !== '-' ? formatDate(new Date(new Date(lastDate).getTime() + avgGap * 86400000)) : '—';
+      const avgGap = gaps.length ? (gaps.reduce((a,b)=>a+b,0) / gaps.length) : null;
+      const lastDate = new Date(dates[dates.length-1]);
+      let nextDate = avgGap ? new Date(lastDate.getTime() + avgGap * 86400000) : null;
+      if (nextDate && nextDate < today) nextDate = today;
+      const nextEstStr = nextDate ? formatDate(nextDate) : '—';
+      html += `<tr><td>${prod}</td><td>${list.length}</td><td>${qtySum}</td><td>${avgGap ? avgGap.toFixed(1)+' يوم' : '-'}</td><td>${formatDate(lastDate)}</td><td>${nextEstStr}</td></tr>`;
 
-      let html = `<div class="card"><h3>${prod}</h3>
-        <p>عدد الطلبات: ${list.length}</p>
-        <p>إجمالي الكمية: ${qtySum}</p>
-        <p>متوسط الفترة بين الطلبات: ${avgGap} يوم</p>
-        <p>آخر طلب: ${formatDate(lastDate)}</p>
-        <p><strong>الطلب المتوقع القادم:</strong> ${nextEst}</p>
-      </div>`;
-      productContainer.innerHTML += html;
+      if (nextDate) {
+        const key = formatKey(nextDate);
+        if (!expectedMap[key]) expectedMap[key] = {};
+        if (!expectedMap[key][category]) expectedMap[key][category] = [];
+        expectedMap[key][category].push(prod);
+      }
     });
-  }
+    html += '</tbody></table></div>';
+    productContainer.innerHTML += html;
+  });
 
-  fetchReports();
+  const summaryDiv = document.getElementById("predictedSummary");
+  let summaryHtml = `<div class="accordion">
+    <button onclick="toggleAccordion('predictedTable')">تجميع التوقعات القادمة</button>
+    <div id="predictedTable" class="accordion-content">
+      <input type="text" class="filterInput" data-table="predictionTable" placeholder="فلترة حسب المنتج أو القسم...">
+      <table id="predictionTable"><thead><tr>
+        <th onclick="sortTable(this)">اليوم</th>
+        <th onclick="sortTable(this)">القسم</th>
+        <th onclick="sortTable(this)">المنتجات المتوقعة</th>
+      </tr></thead><tbody>`;
+  Object.entries(expectedMap).sort().forEach(([day, cats]) => {
+    Object.entries(cats).forEach(([cat, items]) => {
+      summaryHtml += `<tr><td>${day}</td><td>${cat}</td><td>${items.join(', ')}</td></tr>`;
+    });
+  });
+  summaryHtml += '</tbody></table></div></div>';
+  summaryDiv.innerHTML = summaryHtml;
+
+  setTimeout(() => {
+    document.querySelectorAll(".filterInput").forEach(input => {
+      input.addEventListener("keyup", function () {
+        const filter = input.value.toLowerCase();
+        const tableId = input.getAttribute("data-table");
+        const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+        rows.forEach(row => {
+          const text = row.textContent.toLowerCase();
+          row.style.display = text.includes(filter) ? "" : "none";
+        });
+      });
+    });
+  }, 1000);
+}
+fetchReports();
 </script>
 </body>
 </html>
