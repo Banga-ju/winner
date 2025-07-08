@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة المنتجات - عصيرات بنقا</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+    }
+    .tabs {
+      display: flex;
+      justify-content: space-around;
+      background-color: #fff;
+      border-bottom: 2px solid #eee;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      flex-wrap: wrap;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 1rem;
+      cursor: pointer;
+      font-weight: bold;
+      color: #999;
+      min-width: 120px;
+    }
+    .tab.active {
+      color: #2d9958;
+      border-bottom: 3px solid #2d9958;
+    }
+    .content {
+      display: none;
+      padding: 1rem;
+      max-width: 800px;
+      margin: auto;
+    }
+    .content.active {
+      display: block;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .product-row {
+      display: flex;
+      flex-direction: column;
+    }
+    .product-row img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    .product-info {
+      margin-top: 1rem;
+    }
+    .toggle {
+      background: #eee;
+      padding: 0.4rem 1rem;
+      border-radius: 5px;
+      display: inline-block;
+      margin-top: 0.5rem;
+      cursor: pointer;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 0.6rem;
+      margin: 0.5rem 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-family: 'Cairo', sans-serif;
+    }
+    .btn {
+      background: #2d9958;
+      color: #fff;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    .btn.cancel {
+      background: #ccc;
+      margin-right: 1rem;
+    }
+    @media (max-width: 600px) {
+      .tabs {
+        flex-direction: column;
+      }
+      .tab {
+        min-width: unset;
+        padding: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('products')">المنتجات</div>
+    <div class="tab" onclick="showTab('categories')">التصنيفات</div>
+    <div class="tab" onclick="showTab('addProduct')">إضافة منتج</div>
+    <div class="tab" onclick="showTab('addCategory')">إضافة تصنيف</div>
+  </div>
+
+  <div id="products" class="content active">
+    <h2>المنتجات</h2>
+    <div id="productList"></div>
+  </div>
+
+  <div id="categories" class="content">
+    <h2>التصنيفات</h2>
+    <div id="categoryList">جاري التحميل...</div>
+  </div>
+
+  <div id="addProduct" class="content">
+    <h2>إضافة منتج جديد</h2>
+    <input type="text" id="newProductName" placeholder="اسم المنتج">
+    <textarea id="newProductDescription" placeholder="الوصف"></textarea>
+    <input type="text" id="newProductImage" placeholder="رابط الصورة">
+    <input type="number" id="newProductPrice" placeholder="السعر الأساسي">
+    <input type="number" id="newProductOffer" placeholder="سعر العرض (اختياري)">
+    <select id="productCategories" multiple></select>
+    <button class="btn" onclick="submitProduct()">حفظ المنتج</button>
+  </div>
+
+  <div id="addCategory" class="content">
+    <h2>إضافة تصنيف</h2>
+    <input type="text" id="newCategoryName" placeholder="اسم التصنيف">
+    <button class="btn" onclick="submitCategory()">حفظ التصنيف</button>
+  </div>
+
+  <script>
+    const API = "https://script.google.com/macros/s/AKfycbzDZ_aQsIyFO8ffy21kZIJyEM2zkxsvYpwj7J2Q_sqd5BnHjBbCojpW2yJsj8DJmFLY1Q/exec";
+
+    function showTab(id) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`.tab[onclick="showTab('${id}')"]`).classList.add('active');
+      document.getElementById(id).classList.add('active');
+    }
+
+    function toggleAvailability(el, name) {
+      const available = el.dataset.status === 'true';
+      el.innerText = available ? 'غير متوفر' : 'متوفر';
+      el.dataset.status = (!available).toString();
+      alert(`سيتم تحديث حالة "${name}" لاحقًا.`);
+    }
+
+    function randomID(prefix) {
+      return prefix + '_' + Math.random().toString(36).substr(2, 6);
+    }
+
+    function loadProducts() {
+      console.log("[loadProducts] بدء تحميل المنتجات...");
+      fetch(API)
+        .then(res => {
+          console.log("[loadProducts] تم استلام الاستجابة");
+          return res.json();
+        })
+        .then(data => {
+          console.log("[loadProducts] البيانات:", data);
+          const list = document.getElementById('productList');
+          list.innerHTML = '';
+          const categorySet = new Set();
+
+          data.forEach(p => {
+            if (p.categories) p.categories.split(',').forEach(c => categorySet.add(c.trim()));
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+              <div class="product-row">
+                <img src="${p.image_url}" alt="${p.name}">
+                <div class="product-info">
+                  <h3>${p.name}</h3>
+                  <p>${p.description || ''}</p>
+                  <p>السعر: ${p.base_price} ريال ${p.offer_price ? '(عرض: ' + p.offer_price + ' ريال)' : ''}</p>
+                  <div class="toggle" data-status="${p.available}" onclick="toggleAvailability(this, '${p.name}')">
+                    ${p.available === 'false' || p.available === false ? 'غير متوفر' : 'متوفر'}
+                  </div>
+                </div>
+              </div>
+            `;
+            list.appendChild(card);
+          });
+
+          const select = document.getElementById("productCategories");
+          select.innerHTML = '';
+          categorySet.forEach(cat => {
+            const opt = document.createElement("option");
+            opt.value = cat;
+            opt.innerText = cat;
+            select.appendChild(opt);
+          });
+
+          document.getElementById("categoryList").innerHTML = [...categorySet].map(c => `<div class='card'>${c}</div>`).join('');
+        })
+        .catch(err => {
+          console.error("[loadProducts] خطأ:", err);
+        });
+    }
+
+    function submitProduct() {
+      console.log("[submitProduct] إرسال منتج...");
+      const name = document.getElementById("newProductName").value;
+      const desc = document.getElementById("newProductDescription").value;
+      const img = document.getElementById("newProductImage").value;
+      const price = document.getElementById("newProductPrice").value;
+      const offer = document.getElementById("newProductOffer").value;
+      const cats = Array.from(document.getElementById("productCategories").selectedOptions).map(o => o.value);
+      const id = randomID('prod');
+      const body = { id, name, description: desc, image_url: img, base_price: price, offer_price: offer, categories: cats.join(", "), available: true };
+
+      console.log("[submitProduct] البيانات:", body);
+
+      fetch(API + "?action=addProduct", {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => {
+        console.log("[submitProduct] استجابة:", res);
+        return res.text();
+      })
+      .then(txt => {
+        console.log("[submitProduct] رد النص:", txt);
+        alert("تم حفظ المنتج");
+        loadProducts();
+        showTab('products');
+      })
+      .catch(err => {
+        console.error("[submitProduct] خطأ:", err);
+      });
+    }
+
+    function submitCategory() {
+      console.log("[submitCategory] إرسال تصنيف...");
+      const name = document.getElementById("newCategoryName").value;
+      const id = randomID('cat');
+      const body = { id, name };
+
+      console.log("[submitCategory] البيانات:", body);
+
+      fetch(API + "?action=addCategory", {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => {
+        console.log("[submitCategory] استجابة:", res);
+        return res.text();
+      })
+      .then(txt => {
+        console.log("[submitCategory] رد النص:", txt);
+        alert("تم حفظ التصنيف");
+        loadProducts();
+        showTab('categories');
+      })
+      .catch(err => {
+        console.error("[submitCategory] خطأ:", err);
+      });
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>
