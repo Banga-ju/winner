@@ -14,32 +14,58 @@
       margin: 0;
       padding: 0;
       color: #333;
+      text-align: center;
     }
+    .header {
+  position: relative;
+  background: url('banner.jpg') no-repeat center center;
+  background-size: cover;
+  padding: 30px 20px 10px 20px;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* تعتيم 70% */
+  z-index: 1;
+  border-radius: 0 0 15px 15px;
+}
+.header img {
+  max-width: 150px;
+  position: relative;
+  z-index: 2;
+  display: block;
+  margin: auto;
+}
+
     .container {
-      max-width: 500px;
+      max-width: 480px;
       margin: auto;
       padding: 20px;
       background: #ffffff;
       border-radius: 15px;
       box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      margin-top: 30px;
-    }
-    img {
-      max-width: 180px;
-      display: block;
-      margin: auto auto 20px auto;
+      margin-top: 20px;
     }
     label {
       display: block;
       margin-top: 15px;
       font-weight: bold;
+      text-align: right;
     }
     input[type="text"], input[type="url"] {
       width: 100%;
-      padding: 10px;
-      margin-top: 5px;
+      padding: 14px 16px;
+      margin-top: 8px;
+      font-size: 16px;
       border: 1px solid #ccc;
       border-radius: 8px;
+      direction: rtl;
+      box-sizing: border-box;
+    }
+    input[readonly] {
+      background-color: #f4f4f4;
+      color: #555;
     }
     button {
       background-color: #2d9958;
@@ -51,18 +77,17 @@
       width: 100%;
       font-size: 16px;
     }
-    .hidden {
-      display: none;
-    }
-    .terms {
-      margin-top: 15px;
-    }
+    .hidden { display: none; }
+    .terms { margin-top: 15px; text-align: right; }
   </style>
 </head>
 <body>
-<div class="container" id="form-container">
-  <img src="شعار عصيرات بنقا⁩-1.png" alt="شعار عصيرات بنقا">
-  <h2 style="text-align:center; color:#e89c00">تسجيل حضور المعلنين</h2>
+<div class="header">
+  <img src="logo.png" alt="شعار بنقا">
+</div>
+
+<div class="container" id="step1">
+  <h2 style="color:#e89c00">تسجيل حضور المعلنين</h2>
   <label>اسم الشهرة أو الاسم المستعار</label>
   <input type="text" id="displayName">
 
@@ -71,6 +96,37 @@
 
   <label>رابط حساب تيك توك</label>
   <input type="url" id="tiktokAccount">
+
+  <div class="terms">
+    <input type="checkbox" id="agree"> أتعهد بصحة البيانات ومشاركتي الفعلية في النشر، وأوافق على الشروط التالية:
+    <ul>
+      <li>أقر أن البيانات صحيحة ومملوكة لي.</li>
+      <li>سأقوم بنشر المحتوى المصور عبر حساباتي.</li>
+      <li> لن أقوم باستخدام الأغاني في المقاطع المنشورة.</li>
+      <li>يحق لـ عصيرات بنقا استخدام هذه الروابط لأغراض التوثيق.</li>
+    </ul>
+  </div>
+
+  <button onclick="goToStep2()">التالي</button>
+</div>
+
+<!-- باقي المحتوى يبقى كما هو بدون تعديل -->
+
+
+<div class="container hidden" id="step2">
+  <label>اسم الشهرة أو الاسم المستعار</label>
+  <input type="text" id="savedDisplayName" readonly>
+
+  <label>اسم المستخدم في تيك توك</label>
+  <input type="text" id="savedUsername" readonly>
+
+  <label>رابط حساب تيك توك</label>
+  <input type="url" id="savedTiktokAccount" readonly>
+
+  <p style="color:#888; margin-top: 20px;">
+    تم حفظ بياناتك. يمكنك إرفاق روابط النشر والتقييم لاحقًا عن طريق نفس الرابط.
+  </p>
+  
 
   <label>رابط النشر في تيك توك <span style="color:red">*</span></label>
   <input type="url" id="tiktokPost" required>
@@ -84,16 +140,13 @@
   <label>رابط تقييم قوقل ماب</label>
   <input type="url" id="googleReview">
 
-  <div class="terms">
-    <input type="checkbox" id="agree"> أتعهد بصحة البيانات ومشاركتي الفعلية في النشر
-  </div>
-
+  <button onclick="goBackToStep1()">العودة للتعديل</button>
   <button onclick="submitForm()">تأكيد الإرسال</button>
 </div>
 
 <div class="container hidden" id="thanks-container">
-  <h3 style="text-align:center; color:#2d9958">شكرًا لتعاونك!</h3>
-  <p style="text-align:center">نلتقي في تعاون لاحق بإذن الله.</p>
+  <h3 style="color:#2d9958">شكرًا لتعاونك!</h3>
+  <p>نلتقي في تعاون لاحق بإذن الله.</p>
   <button onclick="location.reload()">تعديل البيانات</button>
 </div>
 
@@ -106,11 +159,53 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
+  function goToStep2() {
+    const displayName = document.getElementById('displayName').value;
+    const username = document.getElementById('username').value;
+    const tiktokAccount = document.getElementById('tiktokAccount').value;
+    const agree = document.getElementById('agree').checked;
+
+    if (!displayName || !username || !tiktokAccount || !agree) {
+      alert("يجب تعبئة جميع البيانات والموافقة على الشروط");
+      return;
+    }
+
+    localStorage.setItem("marketerData", JSON.stringify({ displayName, username, tiktokAccount }));
+    fillStep2Fields(displayName, username, tiktokAccount);
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('step2').classList.remove('hidden');
+  }
+
+  function goBackToStep1() {
+    const saved = JSON.parse(localStorage.getItem("marketerData"));
+    if (saved) {
+      document.getElementById('displayName').value = saved.displayName;
+      document.getElementById('username').value = saved.username;
+      document.getElementById('tiktokAccount').value = saved.tiktokAccount;
+    }
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step1').classList.remove('hidden');
+  }
+
+  function fillStep2Fields(displayName, username, tiktokAccount) {
+    document.getElementById('savedDisplayName').value = displayName;
+    document.getElementById('savedUsername').value = username;
+    document.getElementById('savedTiktokAccount').value = tiktokAccount;
+  }
+
+  window.onload = () => {
+    const saved = JSON.parse(localStorage.getItem("marketerData"));
+    if (saved && saved.displayName && saved.username && saved.tiktokAccount) {
+      fillStep2Fields(saved.displayName, saved.username, saved.tiktokAccount);
+      document.getElementById('step1').classList.add('hidden');
+      document.getElementById('step2').classList.remove('hidden');
+    }
+  }
+
   function submitForm() {
+    const saved = JSON.parse(localStorage.getItem("marketerData"));
     const data = {
-      displayName: document.getElementById('displayName').value,
-      username: document.getElementById('username').value,
-      tiktokAccount: document.getElementById('tiktokAccount').value,
+      ...saved,
       tiktokPost: document.getElementById('tiktokPost').value,
       snapPost: document.getElementById('snapPost').value,
       instaPost: document.getElementById('instaPost').value,
@@ -118,13 +213,14 @@
       timestamp: new Date()
     };
 
-    if (!data.tiktokPost || !document.getElementById('agree').checked) {
-      alert("يجب تعبئة رابط تيك توك والموافقة على الشروط");
+    if (!data.tiktokPost) {
+      alert("رابط تيك توك إلزامي");
       return;
     }
 
     db.collection("marketers").add(data).then(() => {
-      document.getElementById('form-container').classList.add('hidden');
+      localStorage.removeItem("marketerData");
+      document.getElementById('step2').classList.add('hidden');
       document.getElementById('thanks-container').classList.remove('hidden');
     });
   }
